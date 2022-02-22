@@ -138,6 +138,22 @@
 #include "storage/spin.h"
 #endif
 
+#ifdef COVERAGE_BUILD
+#ifdef __clang__
+int __llvm_profile_write_file(void);
+static void WriteCoverageFile(int status, Datum arg)
+{
+  __llvm_profile_write_file();
+}
+#else
+void __gcov_flush(void);
+static void WriteCoverageFile(int status, Datum arg)
+{
+  __gcov_flush();
+}
+#endif
+#endif
+
 /*
  * Possible types of a backend. Beyond being the possible bkend_type values in
  * struct bkend, these are OR-able request flag bits for SignalSomeChildren()
@@ -1046,6 +1062,10 @@ PostmasterMain(int argc, char *argv[])
 		ListenSocket[i] = PGINVALID_SOCKET;
 
 	on_proc_exit(CloseServerPorts, 0);
+
+#ifdef COVERAGE_BUILD
+	on_proc_exit(WriteCoverageFile, 0);
+#endif
 
 	if (ListenAddresses)
 	{
@@ -2860,6 +2880,14 @@ pmdie(SIGNAL_ARGS)
 	PG_SETMASK(&UnBlockSig);
 
 	errno = save_errno;
+
+#ifdef COVERAGE_BUILD
+#ifdef __clang__
+	__llvm_profile_write_file();
+#else
+        __gcov_flush();
+#endif
+#endif
 }
 
 /*

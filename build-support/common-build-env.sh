@@ -159,7 +159,10 @@ readonly -a VALID_BUILD_TYPES=(
   tsan
   tsan_slow
   pvs
+  debugcov
+  releasecov
 )
+
 make_regex_from_list VALID_BUILD_TYPES "${VALID_BUILD_TYPES[@]}"
 
 # Valid values of CMAKE_BUILD_TYPE passed to the top-level CMake build. This is the same as the
@@ -645,6 +648,12 @@ set_cmake_build_type_and_compiler_type() {
     ;;
     tsan_slow)
       cmake_build_type=debug
+    ;;
+    debugcov)
+      cmake_build_type=debug
+    ;;
+    releasecov)
+      cmake_build_type=release
     ;;
     *)
       cmake_build_type=$build_type

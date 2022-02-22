@@ -258,6 +258,9 @@ if [[ $iteration -gt 0 ]]; then
     export YB_SUREFIRE_REPORTS_DIR=$test_log_path_prefix.reports
   fi
   export YB_FATAL_DETAILS_PATH_PREFIX=$test_log_path_prefix.fatal_failure_details
+  if [[ $build_type == *cov ]]; then
+    export LLVM_PROFILE_FILE=$test_log_path_prefix.%p.profraw
+  fi
 
   set +e
   current_timestamp=$( get_timestamp_for_filenames )

@@ -60,6 +60,7 @@ import javax.inject.Inject;
 import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yb.util.BuildTypeUtil;
 import play.data.Form;
 import play.libs.Json;
 import play.mvc.Result;
@@ -604,7 +605,7 @@ public class BackupsController extends AuthenticatedController {
       LOG.info("The backup {} process you want to stop doesn't exist.", backupUUID);
       throw new PlatformServiceException(
           BAD_REQUEST, "The backup process you want to stop doesn't exist.");
-    } else {
+    } else if (!BuildTypeUtil.isCoverage()) {
       process.destroyForcibly();
     }
     Util.removeProcess(backupUUID);

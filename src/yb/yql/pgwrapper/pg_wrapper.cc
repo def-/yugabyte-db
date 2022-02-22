@@ -429,6 +429,10 @@ Status PgWrapper::Start() {
   // See YBSetParentDeathSignal in pg_yb_utils.c for how this is used.
   pg_proc_->SetEnv("YB_PG_PDEATHSIG", Format("$0", SIGINT));
   pg_proc_->InheritNonstandardFd(conf_.tserver_shm_fd);
+#ifdef COVERAGE_BUILD
+  const char* llvm_profile_env_var_value = getenv("LLVM_PROFILE_FILE");
+  pg_proc_->SetEnv("LLVM_PROFILE_FILE", Format("$0_postgres.%p", llvm_profile_env_var_value));
+#endif
   SetCommonEnv(&pg_proc_.get(), /* yb_enabled */ true);
   RETURN_NOT_OK(pg_proc_->Start());
   if (!FLAGS_postmaster_cgroup.empty()) {
@@ -664,7 +668,13 @@ CHECKED_STATUS PgSupervisor::CleanupOldServerUnlocked() {
       }
 #endif
       if (postgres_found) {
+#ifdef COVERAGE_BUILD
+        // Don't kill postgres hard in coverage mode, allow postgres signal
+        // handler in die() to finish writing coverage profile.
+        if (kill(postgres_pid, SIGTERM) != 0 && errno != ESRCH && errno != EPERM) {
+#else
         if (kill(postgres_pid, SIGKILL) != 0 && errno != ESRCH && errno != EPERM) {
+#endif
           return STATUS(RuntimeError, "Unable to kill", Errno(errno));
         }
       } else {

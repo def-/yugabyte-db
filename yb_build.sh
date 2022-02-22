@@ -152,6 +152,8 @@ Build options:
     Enable precompiled headers using cotire.
   --static-analyzer
     Enable Clang static analyzer
+  --no-coverage-report
+    Disable coverage report generation using llvm-cov when running tests in debugcov/releasecov
 
 Test options:
 
@@ -336,6 +338,9 @@ print_report() {
       print_report_line "%s" "Third-party dir" "${YB_THIRDPARTY_DIR:-undefined}"
       if using_linuxbrew; then
         print_report_line "%s" "Linuxbrew dir" "${YB_LINUXBREW_DIR:-undefined}"
+      fi
+      if [[ -n ${YB_LLVM_TOOLCHAIN_DIR:-} ]]; then
+        print_report_line "%s" "LLVM toolchain dir" "${YB_LLVM_TOOLCHAIN_DIR:-undefined}"
       fi
 
       set +u
@@ -632,6 +637,69 @@ register_file_to_rebuild() {
   )
 }
 
+coverage_collector() {
+  if [[ $build_type != *cov ]]; then
+    return
+  fi
+  if [[ ${YB_DISABLE_COVERAGE_REPORT:-} == "1" ]]; then
+    return
+  fi
+
+  i=0
+  set +e
+  while [ ! -f "$COVERAGE_COLLECTOR_FINISH" ]; do
+    PROFRAWS=$(find "$BUILD_ROOT" -name '*.profraw*' -mmin +30 -not -empty; \
+      find "$YB_SRC_ROOT/java" -name '*.profraw*' -mmin +30 -not -empty)
+    if [ -n "$PROFRAWS" ]; then
+      "$YB_LLVM_TOOLCHAIN_DIR/bin/llvm-profdata" \
+        merge -sparse $PROFRAWS -o "$BUILD_ROOT/collected_$i.profdata" && rm $PROFRAWS
+      i=$((i+1))
+    fi
+    sleep 300
+  done
+  rm -f "$COVERAGE_COLLECTOR_FINISH"
+  PROFRAWS=$(find "$BUILD_ROOT" -name '*.profraw*'; \
+    find "$YB_SRC_ROOT/java" -name '*.profraw*')
+  if [ -n "$PROFRAWS" ]; then
+    "$YB_LLVM_TOOLCHAIN_DIR/bin/llvm-profdata" \
+      merge -sparse $PROFRAWS -o "$BUILD_ROOT/collected_$i.profdata" && rm $PROFRAWS
+  fi
+}
+
+generate_coverage_report() {
+  if [[ $build_type != *cov ]]; then
+    return
+  fi
+  if [[ ${YB_DISABLE_COVERAGE_REPORT:-} == "1" ]]; then
+    return
+  fi
+
+  touch "$COVERAGE_COLLECTOR_FINISH"
+  wait $COVERAGE_COLLECTOR_PID
+
+  rm -rf "$BUILD_ROOT/coverage_report"
+  PROFDATAS=$(find "$BUILD_ROOT" -name 'collected_*.profdata')
+  if [ -n "$PROFDATAS" ]; then
+    "$YB_LLVM_TOOLCHAIN_DIR/bin/llvm-profdata" \
+      merge -sparse $PROFDATAS -o "$BUILD_ROOT/combined.profdata" && rm $PROFDATAS
+    OBJS=$(find $BUILD_ROOT -not -path '*/postgres_build/*' -a \
+      \( -path '*/bin/*' -o -name '*.dylib' \) | while read line; do echo -n "-object $line "; done)
+    VERSION=$(cat "$YB_SRC_ROOT/managed/src/main/resources/version.txt")
+    GIT_HASH=$(git -C "$YB_SRC_ROOT" rev-parse HEAD)
+    COMMAND="$0 $*"
+    "$YB_LLVM_TOOLCHAIN_DIR/bin/llvm-cov" \
+      show $OBJS -show-line-counts-or-regions \
+      --instr-profile "$BUILD_ROOT/combined.profdata" --format=html \
+      --project-title "YugabyteDB ($VERSION, $GIT_HASH, $COMMAND)" \
+      --ignore-filename-regex="/opt/yb-build/thirdparty/.*" \
+      --output-dir="$BUILD_ROOT/coverage_report" \
+      --Xdemangler c++filt -Xdemangler -n
+  fi
+
+  log "Coverage report generated, open with"
+  log "  open $BUILD_ROOT/coverage_report/index.html"
+}
+
 # This is used for "initdb" and "reinitdb" target keywords.
 set_initdb_target() {
   make_targets+=( "initial_sys_catalog_snapshot" )
@@ -640,6 +708,7 @@ set_initdb_target() {
 
 cleanup() {
   local YB_BUILD_EXIT_CODE=$?
+  generate_coverage_report
   print_report
   exit "$YB_BUILD_EXIT_CODE"
 }
@@ -1088,6 +1157,9 @@ while [[ $# -gt 0 ]]; do
     --static-analyzer)
       export YB_ENABLE_STATIC_ANALYZER=1
     ;;
+    --no-coverage-report)
+      export YB_DISABLE_COVERAGE_REPORT=1
+    ;;
     --download-thirdparty|--dltp)
       export YB_DOWNLOAD_THIRDPARTY=1
     ;;
@@ -1421,6 +1493,11 @@ fi
 # Install the cleanup handler that will print a report at the end, even if we terminate with an
 # error.
 trap cleanup EXIT
+
+COVERAGE_COLLECTOR_FINISH="$BUILD_ROOT/coverage_collector_finish"
+rm -f $COVERAGE_COLLECTOR_FINISH
+coverage_collector &
+COVERAGE_COLLECTOR_PID=$!
 
 activate_virtualenv
 check_python_script_syntax

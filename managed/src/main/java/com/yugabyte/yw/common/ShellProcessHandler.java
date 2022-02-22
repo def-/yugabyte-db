@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
+import org.yb.util.BuildTypeUtil;
 
 @Singleton
 public class ShellProcessHandler {
@@ -214,7 +215,9 @@ public class ShellProcessHandler {
           LOG.error(
               "Process could not be destroyed gracefully within the specified time '{}'",
               response.description);
-          process.destroyForcibly();
+          if (!BuildTypeUtil.isCoverage()) {
+            process.destroyForcibly();
+          }
         }
       }
     } finally {

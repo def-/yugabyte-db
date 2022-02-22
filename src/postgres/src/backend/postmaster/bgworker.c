@@ -37,6 +37,14 @@
 #include "utils/ps_status.h"
 #include "utils/timeout.h"
 
+#ifdef COVERAGE_BUILD
+#ifdef __clang__
+int __llvm_profile_write_file(void);
+#else
+void __gcov_flush(void);
+#endif
+#endif
+
 /*
  * The postmaster's list of registered background workers, in private memory.
  */
@@ -658,6 +666,9 @@ bgworker_quickdie(SIGNAL_ARGS)
 	 * should ensure the postmaster sees this as a crash, too, but no harm in
 	 * being doubly sure.)
 	 */
+#ifdef COVERAGE_BUILD
+        __llvm_profile_write_file();
+#endif
 	_exit(2);
 }
 
@@ -668,6 +679,13 @@ static void
 bgworker_die(SIGNAL_ARGS)
 {
 	PG_SETMASK(&BlockSig);
+#ifdef COVERAGE_BUILD
+#ifdef __clang__
+        __llvm_profile_write_file();
+#else
+        __gcov_flush();
+#endif
+#endif
 
 	ereport(FATAL,
 			(errcode(ERRCODE_ADMIN_SHUTDOWN),
@@ -684,6 +702,13 @@ bgworker_die(SIGNAL_ARGS)
 static void
 bgworker_sigusr1_handler(SIGNAL_ARGS)
 {
+#ifdef COVERAGE_BUILD
+#ifdef __clang__
+        __llvm_profile_write_file();
+#else
+        __gcov_flush();
+#endif
+#endif
 	int			save_errno = errno;
 
 	latch_sigusr1_handler();

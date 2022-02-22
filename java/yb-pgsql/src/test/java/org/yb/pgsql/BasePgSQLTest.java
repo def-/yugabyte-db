@@ -1951,6 +1951,8 @@ public class BasePgSQLTest extends BaseMiniClusterTest {
 
   /** Run a process, returning output lines. */
   protected List<String> runProcess(ProcessBuilder procBuilder) throws Exception {
+    Map<String, String> env = procBuilder.environment();
+    env.put("LLVM_PROFILE_FILE", procBuilder.command().get(0) + ".%p.profraw");
     Process proc = procBuilder.start();
     int code = proc.waitFor();
     if (code != 0) {

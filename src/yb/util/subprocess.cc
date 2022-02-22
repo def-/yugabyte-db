@@ -144,7 +144,13 @@ Subprocess::~Subprocess() {
     LOG(WARNING) << "Child process " << child_pid_
                  << "(" << JoinStrings(argv_, " ") << ") "
                  << " was orphaned. Sending SIGKILL...";
+#ifdef COVERAGE_BUILD
+    // Don't kill postgres hard in coverage mode, allow postgres signal
+    // handler in die() to finish writing coverage profile.
+    WARN_NOT_OK(Kill(SIGTERM), "Failed to send SIGTERM");
+#else
     WARN_NOT_OK(Kill(SIGKILL), "Failed to send SIGKILL");
+#endif
     int junk = 0;
     WARN_NOT_OK(Wait(&junk), "Failed to Wait()");
   }

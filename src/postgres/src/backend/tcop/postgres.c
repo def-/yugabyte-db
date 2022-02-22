@@ -88,6 +88,14 @@
 #include "libpq/yb_pqcomm_extensions.h"
 #include "utils/rel.h"
 
+#ifdef COVERAGE_BUILD
+#ifdef __clang__
+int __llvm_profile_write_file(void);
+#else
+void __gcov_flush(void);
+#endif
+#endif
+
 /* ----------------
  *		global variables
  * ----------------
@@ -2696,6 +2704,14 @@ quickdie(SIGNAL_ARGS)
 		YBOnPostgresBackendShutdown();
 	}
 
+#ifdef COVERAGE_BUILD
+#ifdef __clang__
+	__llvm_profile_write_file();
+#else
+        __gcov_flush();
+#endif
+#endif
+
 	/*
 	 * We DO NOT want to run proc_exit() or atexit() callbacks -- we're here
 	 * because shared memory may be corrupted, so we don't want to try to
@@ -2742,6 +2758,14 @@ die(SIGNAL_ARGS)
 		ProcessInterrupts();
 
 	errno = save_errno;
+
+#ifdef COVERAGE_BUILD
+#ifdef __clang__
+	__llvm_profile_write_file();
+#else
+        __gcov_flush();
+#endif
+#endif
 }
 
 /*

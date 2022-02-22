@@ -187,7 +187,11 @@ int main(int argc, char** argv) {
       timed_out = true;
       if (!SendSignalAndWait(&subprocess, SIGQUIT, "SIGQUIT", kWaitSecAfterSigQuit) &&
           !SendSignalAndWait(&subprocess, SIGSEGV, "SIGSEGV", kWaitSecAfterSigSegv) &&
+#ifdef COVERAGE_BUILD
+          !SendSignalAndWait(&subprocess, SIGTERM, "SIGTERM", /* wait_sec */ 0)) {
+#else
           !SendSignalAndWait(&subprocess, SIGKILL, "SIGKILL", /* wait_sec */ 0)) {
+#endif
         LOG(ERROR) << "Failed to kill the process with SIGKILL (should not happen).";
       }
     }

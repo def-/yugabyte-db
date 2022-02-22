@@ -68,7 +68,11 @@ using std::unordered_set;
 DECLARE_string(flagfile);
 
 #ifdef COVERAGE_BUILD
+#ifdef __clang__
+extern "C" int __llvm_profile_write_file(void);
+#else
 extern "C" void __gcov_flush(void);
+#endif
 #endif
 
 
@@ -166,9 +170,16 @@ void GenericServiceImpl::FlushCoverage(const FlushCoverageRequestPB* req,
                                        FlushCoverageResponsePB* resp,
                                        rpc::RpcContext rpc) {
 #ifdef COVERAGE_BUILD
+#ifdef __clang__
+  const int result = __llvm_profile_write_file();
+#else
   __gcov_flush();
-  LOG(INFO) << "Flushed coverage info. (request from " << rpc.requestor_string() << ")";
-  resp->set_success(true);
+  const int result = 0;
+#endif
+#endif
+  LOG(INFO) << "Flushed coverage info. (request from " << rpc.requestor_string()
+            << ", result: " << result << ")";
+  resp->set_success(result == 0);
 #else
   LOG(WARNING) << "Non-coverage build cannot flush coverage (request from "
                << rpc.requestor_string() << ")";

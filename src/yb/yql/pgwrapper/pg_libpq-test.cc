@@ -2180,7 +2180,11 @@ TEST_F_EX(PgLibPqTest,
     pg_pid_in >> pg_pid;
     ASSERT_GT(pg_pid, 0);
     LOG(INFO) << "Killing PostgresSQL process: " << pg_pid;
+#ifdef COVERAGE_BUILD
+    ASSERT_EQ(kill(pg_pid, SIGTERM), 0);
+#else
     ASSERT_EQ(kill(pg_pid, SIGKILL), 0);
+#endif
   }
 
   // Reconnect to the database after the new PostgreSQL starts.
