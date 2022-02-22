@@ -138,6 +138,10 @@
 #include "storage/spin.h"
 #endif
 
+#ifdef COVERAGE_BUILD
+int __llvm_profile_write_file(void);
+#endif
+
 /*
  * Possible types of a backend. Beyond being the possible bkend_type values in
  * struct bkend, these are OR-able request flag bits for SignalSomeChildren()
@@ -2860,6 +2864,10 @@ pmdie(SIGNAL_ARGS)
 	PG_SETMASK(&UnBlockSig);
 
 	errno = save_errno;
+
+#ifdef COVERAGE_BUILD
+        __llvm_profile_write_file();
+#endif
 }
 
 /*

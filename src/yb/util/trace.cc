@@ -58,7 +58,11 @@ DEFINE_bool(use_monotime_for_traces, false, "Flag to enable use of MonoTime::Now
 TAG_FLAG(use_monotime_for_traces, advanced);
 TAG_FLAG(use_monotime_for_traces, runtime);
 
+#ifdef COVERAGE_BUILD
+DEFINE_int32(tracing_level, 4, "verbosity levels (like --v) up to which tracing is enabled.");
+#else
 DEFINE_int32(tracing_level, 0, "verbosity levels (like --v) up to which tracing is enabled.");
+#endif
 TAG_FLAG(tracing_level, advanced);
 TAG_FLAG(tracing_level, runtime);
 

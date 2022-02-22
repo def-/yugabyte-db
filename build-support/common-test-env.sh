@@ -875,7 +875,8 @@ run_one_cxx_test() {
     TEST_TMPDIR \
     test_cmd_line \
     test_failed \
-    rel_test_binary
+    rel_test_binary \
+    build_type
 
   # We expect the exact string "false" here for added safety.
   if [[ $test_failed != "false" ]]; then
@@ -895,7 +896,9 @@ run_one_cxx_test() {
   pushd "$TEST_TMPDIR" >/dev/null
 
   export YB_FATAL_DETAILS_PATH_PREFIX=$test_log_path_prefix.fatal_failure_details
-
+  if [[ $build_type == *cov ]]; then
+    export LLVM_PROFILE_FILE=$test_log_path_prefix.%p.profraw
+  fi
   about_to_start_running_test
 
   local attempts_left
@@ -1297,6 +1300,8 @@ show_disk_usage() {
 }
 
 find_spark_submit_cmd() {
+  expect_vars_to_be_set build_type
+
   if [[ -n ${YB_SPARK_SUBMIT_CMD_OVERRIDE:-} ]]; then
     spark_submit_cmd_path=$YB_SPARK_SUBMIT_CMD_OVERRIDE
     return

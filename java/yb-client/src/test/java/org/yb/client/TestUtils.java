@@ -90,8 +90,8 @@ public class TestUtils {
 
   private static final Object flagFilePathLock = new Object();
 
+  private static volatile String[] cachedBuildDirNameComponents = null;
   private static volatile String cppBinariesDir = null;
-  private static volatile String buildType = null;
 
   /**
    * When collecting the list of tests to run using the -DcollectTests option to the build, prefix
@@ -223,10 +223,10 @@ public class TestUtils {
         " in binary directory " + binDir);
   }
 
-  public static String getBuildType() {
-    if (buildType != null)
-      return buildType;
-
+  private static String[] getBuildDirNameComponents() {
+    if (cachedBuildDirNameComponents != null) {
+      return cachedBuildDirNameComponents;
+    }
     try {
       final File canonicalBuildDir = new File(getBinDir()).getParentFile().getCanonicalFile();
       final String buildDirBasename = canonicalBuildDir.getName();
@@ -235,13 +235,21 @@ public class TestUtils {
           "buildDirNameComponents is expected to have at least 3 components: " +
               Arrays.asList(buildDirNameComponents) + ", canonicalBuildDir=" +
               canonicalBuildDir.getPath();
-      buildType = buildDirNameComponents[0].toLowerCase();
-      LOG.info("Identified build type as '" + buildType + "' based on canonical build " +
-          "directory '" + canonicalBuildDir + "' and base name '" + buildDirBasename + "'");
-      return buildType;
+      cachedBuildDirNameComponents = buildDirNameComponents;
+      return buildDirNameComponents;
     } catch (IOException ex) {
-      throw new RuntimeException("Failed trying to get the build type", ex);
+      throw new RuntimeException(
+          "Failed to get the build directory name. Binary directory: " + getBinDir(),
+          ex);
     }
+  }
+
+  public static String getBuildType() {
+    return getBuildDirNameComponents()[0].toLowerCase();
+  }
+
+  public static String getCppCompilerType() {
+    return getBuildDirNameComponents()[1].toLowerCase();
   }
 
   public static boolean isReleaseBuild() {

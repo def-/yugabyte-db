@@ -159,7 +159,10 @@ readonly -a VALID_BUILD_TYPES=(
   tsan
   tsan_slow
   pvs
+  debugcov
+  releasecov
 )
+
 make_regex_from_list VALID_BUILD_TYPES "${VALID_BUILD_TYPES[@]}"
 
 # Valid values of CMAKE_BUILD_TYPE passed to the top-level CMake build. This is the same as the
@@ -646,6 +649,12 @@ set_cmake_build_type_and_compiler_type() {
     tsan_slow)
       cmake_build_type=debug
     ;;
+    debugcov)
+      cmake_build_type=debug
+    ;;
+    releasecov)
+      cmake_build_type=release
+    ;;
     *)
       cmake_build_type=$build_type
   esac
@@ -661,6 +670,11 @@ set_cmake_build_type_and_compiler_type() {
   if [[ $build_type =~ ^asan|tsan|tsan_slow$ && $YB_COMPILER_TYPE == gcc* ]]; then
     fatal "Build type $build_type not supported with compiler type $YB_COMPILER_TYPE." \
           "Sanitizers are only supported with Clang."
+  fi
+
+  if [[ $build_type == *cov && $YB_COMPILER_TYPE != clang* ]]; then
+    fatal "Code coverage builds are only supported with clang." \
+          "Build type: $build_type. Compiler type: $YB_COMPILER_TYPE."
   fi
 
   # We need to set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER outside of CMake. We used to do that from

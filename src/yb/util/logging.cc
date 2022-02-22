@@ -62,6 +62,10 @@
 #include "yb/util/flag_tags.h"
 #include "yb/util/format.h"
 
+#ifdef COVERAGE_BUILD
+extern "C" int __llvm_profile_write_file(void);
+#endif
+
 DEFINE_string(log_filename, "",
     "Prefix of log filename - "
     "full path is <log_dir>/<log_filename>.[INFO|WARN|ERROR|FATAL]");
@@ -167,7 +171,7 @@ void DumpStackTraceAndExit() {
   }
 
   // Set the default signal handler for SIGABRT, to avoid invoking our
-  // own signal handler installed by InstallFailedSignalHandler().
+  // own signal handler installed by InstallFailureSignalHandler().
   struct sigaction sig_action;
   memset(&sig_action, 0, sizeof(sig_action));
   sigemptyset(&sig_action.sa_mask);
@@ -178,6 +182,9 @@ void DumpStackTraceAndExit() {
 }
 
 void CustomGlogFailureWriter(const char* data, int size) {
+  #ifdef COVERAGE_BUILD
+    __llvm_profile_write_file();
+  #endif
   if (size == 0) {
     return;
   }

@@ -2129,6 +2129,11 @@ Status ExternalDaemon::StartProcess(const vector<string>& user_flags) {
     p->SetEnv("HEAPPROFILESIGNAL", std::to_string(kHeapProfileSignal));
   }
 
+  const char* llvm_profile_env_var_value = getenv("LLVM_PROFILE_FILE");
+  if (llvm_profile_env_var_value) {
+    p->SetEnv("LLVM_PROFILE_FILE", Format("$0_$1", llvm_profile_env_var_value, daemon_id_));
+  }
+
   RETURN_NOT_OK_PREPEND(p->Start(),
                         Substitute("Failed to start subprocess $0", exe_));
 
@@ -2163,7 +2168,9 @@ Status ExternalDaemon::StartProcess(const vector<string>& user_flags) {
   }
 
   if (!success) {
+#ifndef COVERAGE_BUILD
     WARN_NOT_OK(p->Kill(SIGKILL), "Killing process failed");
+#endif
     return STATUS(TimedOut,
         Substitute("Timed out after $0s waiting for process ($1) to write info file ($2)",
                    kProcessStartTimeoutSeconds, exe_, info_path));
@@ -2260,10 +2267,12 @@ void ExternalDaemon::Shutdown() {
       }
     }
 
+#ifndef COVERAGE_BUILD
     if (IsProcessAlive()) {
       LOG(INFO) << "Killing " << ProcessNameAndPidStr() << " with SIGKILL";
       WARN_NOT_OK(process_->Kill(SIGKILL), "Killing process failed");
     }
+#endif
   }
   int ret = 0;
   WARN_NOT_OK(process_->Wait(&ret), "Waiting on " + exe_);
@@ -2271,19 +2280,17 @@ void ExternalDaemon::Shutdown() {
 }
 
 void ExternalDaemon::FlushCoverage() {
-#ifndef COVERAGE_BUILD_
+#ifndef COVERAGE_BUILD
   return;
 #else
-  LOG(INFO) << "Attempting to flush coverage for " << exe_ << " pid " << process_->pid();
-  server::GenericServiceProxy proxy(messenger_, bound_rpc_addr());
+  LOG(FATAL) << "Attempting to flush coverage for " << exe_ << " pid " << process_->pid();
+  server::GenericServiceProxy proxy(proxy_cache_, bound_rpc_addr());
 
   server::FlushCoverageRequestPB req;
   server::FlushCoverageResponsePB resp;
   rpc::RpcController rpc;
 
-  // Set a reasonably short timeout, since some of our tests kill servers which
-  // are kill -STOPed.
-  rpc.set_timeout(MonoDelta::FromMilliseconds(100));
+  rpc.set_timeout(MonoDelta::FromMilliseconds(10000));
   Status s = proxy.FlushCoverage(req, &resp, &rpc);
   if (s.ok() && !resp.success()) {
     s = STATUS(RemoteError, "Server does not appear to be running a coverage build");

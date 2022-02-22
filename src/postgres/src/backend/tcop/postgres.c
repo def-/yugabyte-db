@@ -88,6 +88,10 @@
 #include "libpq/yb_pqcomm_extensions.h"
 #include "utils/rel.h"
 
+#ifdef COVERAGE_BUILD
+int __llvm_profile_write_file(void);
+#endif
+
 /* ----------------
  *		global variables
  * ----------------
@@ -2742,6 +2746,10 @@ die(SIGNAL_ARGS)
 		ProcessInterrupts();
 
 	errno = save_errno;
+
+#ifdef COVERAGE_BUILD
+        __llvm_profile_write_file();
+#endif
 }
 
 /*

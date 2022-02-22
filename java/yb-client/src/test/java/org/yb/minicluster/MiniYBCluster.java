@@ -812,16 +812,18 @@ public class MiniYBCluster implements AutoCloseable {
         type == MiniYBDaemonType.MASTER ? nextMasterIndex.incrementAndGet()
             : nextTServerIndex.incrementAndGet();
 
+    final String specialFileSuffix =
+        "." + type.shortStr() + "-" + indexForLog + "." + bindIp + "-" + "port" + rpcPort;
+    final String testReportFilePrefix = TestUtils.getTestReportFilePrefix();
+
     {
       List<String> args = new ArrayList<>();
       args.addAll(Arrays.asList(command));
       String fatalDetailsPathPrefix = System.getenv("YB_FATAL_DETAILS_PATH_PREFIX");
       if (fatalDetailsPathPrefix == null) {
-        fatalDetailsPathPrefix =
-            TestUtils.getTestReportFilePrefix() + "fatal_failure_details";
+        fatalDetailsPathPrefix = testReportFilePrefix + "fatal_failure_details";
       }
-      fatalDetailsPathPrefix += "." + type.shortStr() + "-" + indexForLog + "." + bindIp + "-" +
-          "port" + rpcPort;
+      fatalDetailsPathPrefix += specialFileSuffix;
       args.add("--fatal_details_path_prefix=" + fatalDetailsPathPrefix);
       args.addAll(getCommonDaemonFlags());
       command = args.toArray(command);
@@ -833,6 +835,11 @@ public class MiniYBCluster implements AutoCloseable {
       procBuilder.environment().putAll(environment);
       envString = environment.toString();
     }
+    if (BuildTypeUtil.isClangCodeCoverageBuild()) {
+      procBuilder.environment().put(
+          "LLVM_PROFILE_FILE", testReportFilePrefix + "%p" + specialFileSuffix + ".profraw");
+    }
+
     LOG.info("Starting process: {} with environment {}", Joiner.on(" ").join(command), envString);
     Process proc = procBuilder.start();
     final MiniYBDaemon daemon =
@@ -1053,6 +1060,7 @@ public class MiniYBCluster implements AutoCloseable {
     List<MiniYBDaemon> allDaemons = new ArrayList<>();
     allDaemons.addAll(masterProcesses.values());
     allDaemons.addAll(tserverProcesses.values());
+
     processes.addAll(destroyDaemons(masterProcesses.values()));
     processes.addAll(destroyDaemons(tserverProcesses.values()));
     LOG.info(

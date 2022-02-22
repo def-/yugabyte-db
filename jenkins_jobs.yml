@@ -38,6 +38,16 @@ jobs:
     build_type: fastdebug
     release_artifact: false
 
+  - os: alma8
+    compiler: gcc9
+    build_type: fastdebug
+    release_artifact: false
+
+  - os: alma8
+    compiler: clang12
+    build_type: debugcov
+    release_artifact: false
+
   - os: mac11.6
     compiler: clang
     build_type: debug

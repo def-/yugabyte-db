@@ -337,9 +337,9 @@ if ($ENV{YB_COMPILER_TYPE} STREQUAL "zapcc")
   ADD_CXX_FLAGS("-DYB_ZAPCC")
 endif()
 
-############################################################
+###################################################################################################
 # Compiler flags
-############################################################
+###################################################################################################
 
 if(NOT APPLE AND "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
   # The following flags are required to not assume the presence of too many CPU features so that the
@@ -581,10 +581,21 @@ if ("${YB_BUILD_TYPE}" MATCHES "^(asan|tsan)$")
   endif()
 endif()
 
+if ("${YB_BUILD_TYPE}" MATCHES "^.*cov$")
+  ADD_CXX_FLAGS("-fprofile-instr-generate -fcoverage-mapping -DCOVERAGE_BUILD")
+  ADD_LINKER_FLAGS("-fprofile-instr-generate -fcoverage-mapping")
+  ADD_EXE_LINKER_FLAGS("-fprofile-instr-generate -fcoverage-mapping")
+endif()
+
 set(BUILD_SHARED_LIBS ON)
 
 # Position independent code is only necessary when producing shared objects.
 ADD_CXX_FLAGS(-fPIC)
+
+###################################################################################################
+# This concludes a large section dedicated to compiler flags. We might still make some changes to
+# compiler flags after this point.
+###################################################################################################
 
 # where to put generated archives (.a files)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
@@ -610,9 +621,9 @@ if (USING_LINUXBREW)
   ADD_GLOBAL_RPATH_ENTRY_AND_LIB_DIR("${LINUXBREW_LIB_DIR}")
 endif()
 
-############################################################
+###################################################################################################
 # Dependencies
-############################################################
+###################################################################################################
 function(ADD_THIRDPARTY_LIB LIB_NAME)
   set(options)
   set(one_value_args SHARED_LIB STATIC_LIB)

@@ -30,6 +30,10 @@ public final class BuildTypeUtil {
     return TestUtils.getBuildType().equals("tsan");
   }
 
+  public static boolean isCoverage() {
+    return TestUtils.getBuildType().equals("debugcov") || TestUtils.getBuildType().equals("releasecov");
+  }
+
   public static boolean isASAN() {
     return TestUtils.getBuildType().equals("asan");
   }
@@ -62,6 +66,8 @@ public final class BuildTypeUtil {
 
   /** @return a timeout multiplier to apply in tests based on the build type */
   public static double getTimeoutMultiplier() {
+    if (isCoverage())
+      return 20;
     if (isTSAN())
       return 3;
     if (isASAN())
@@ -96,4 +102,13 @@ public final class BuildTypeUtil {
   public static boolean isSanitizerBuild() {
     return isASAN() || isTSAN();
   }
+
+  public static boolean isCodeCoverageBuild() {
+    return TestUtils.getBuildType().endsWith("cov");
+  }
+
+  public static boolean isClangCodeCoverageBuild() {
+    return isCodeCoverageBuild() && TestUtils.getCppCompilerType().startsWith("clang");
+  }
+
 }
